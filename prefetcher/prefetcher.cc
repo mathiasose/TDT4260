@@ -5,6 +5,12 @@
  */
 
 #include "interface.hh"
+#include "stdint.h"
+
+#define N 3
+
+Addr* last_addrs;
+uint8_t head;
 
 
 void prefetch_init(void)
@@ -13,19 +19,32 @@ void prefetch_init(void)
     /* This is the place to initialize data structures. */
 
     DPRINTF(HWPrefetch, "Initialized sequential-on-access prefetcher\n");
+
+    last_addrs = (Addr*)malloc(sizeof(Addr) * N);
+    head = 0;
 }
 
 void prefetch_access(AccessStat stat)
 {
-    /* pf_addr is now an address within the _next_ cache block */
-    Addr pf_addr = stat.mem_addr + BLOCK_SIZE;
+    last_addrs[head++] = stat.mem_addr;
+    if (head == N) {
+        head = 0;
+    }
 
-    /*
-     * Issue a prefetch request if a demand miss occured,
-     * and the block is not already in cache.
-     */
-    if (stat.miss && !in_cache(pf_addr)) {
-        issue_prefetch(pf_addr);
+    bool pattern = true;
+    int32_t stride = last_addrs[1] - last_addrs[0];
+    for (uint8_t i = 2; i < N; i++) {
+        if (last_addrs[i] - last_addrs[i-1] != stride) {
+            pattern = false;
+            break;
+        }
+    }
+
+    if (pattern) {
+        Addr pf_addr = last_addrs[N-1] + stride;
+        if (!in_cache(pf_addr)) {
+            issue_prefetch(pf_addr);
+        }
     }
 }
 
@@ -33,4 +52,7 @@ void prefetch_complete(Addr addr) {
     /*
      * Called when a block requested by the prefetcher has been loaded.
      */
+
+    free(last_addrs);
 }
+
