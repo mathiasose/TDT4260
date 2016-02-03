@@ -6,22 +6,22 @@
 
 #include "interface.hh"
 
-struct List {
-    List();
-    request * first, * last;
-};
-
-List::List() : first(nullptr), last(nullptr){}
-
 struct Request {
-    Request(Addr addr, bool ms, Request *prv)
+    Request(Addr addr, bool ms, Request *prv);
     bool miss;
     Addr adress;
     int strideToPrev;
-    request * next, * prev;
+    Request * next, * prev;
 };
 
-Request::Request(Addr addr, bool ms, Request *prv) : adress(addr), miss(ms), prev(prv), next(nullptr){}
+Request::Request(Addr addr, bool ms, Request *prv) : adress(addr), miss(ms), prev(prv), next(NULL){}
+
+struct List {
+    List();
+    Request * first, * last;
+};
+
+List::List() : first(NULL), last(NULL){}
 
 static List * list;
 
@@ -30,7 +30,7 @@ void prefetch_init(void)
 {
     /* Called before any calls to prefetch_access. */
     /* This is the place to initialize data structures. */
-    list = new List()
+    list = new List();
 
     DPRINTF(HWPrefetch, "Initialized sequential-on-access prefetcher\n");
 }
@@ -38,15 +38,15 @@ void prefetch_init(void)
 void prefetch_access(AccessStat stat)
 {
     /* pf_addr is now an address within the _next_ cache block */
-    Request req = new Request(stat.mem_addr,stat.miss,list.last);
+    Request * req = new Request(stat.mem_addr,stat.miss,list->last);
     
     if (!(list->first)){
-        list->first = &req;
-        list->last = &req;
+        list->first = req;
+        list->last = req;
     } else {
-        list->last->next = &req;
-        list->last = &req;
-        list->last.strideToPrev = list->last->prev->adress - list->last->adress
+        list->last->next = req;
+        list->last = req;
+        list->last->strideToPrev = list->last->prev->adress - list->last->adress;
     }
     
     Addr pf_addr = stat.mem_addr + list->last->strideToPrev;
