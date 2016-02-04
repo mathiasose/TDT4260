@@ -27,7 +27,7 @@ struct List {
     void push(Request* req);
     //int getStrides(int len);
     void shift();
-    bool judge();
+    bool judge(Addr pf_addr);
     
     //int strides[MAX_LENGTH];
     int length;
@@ -40,6 +40,7 @@ void List::push(Request* req) {
     this->last->next = req;
     this->last = req;
     this->last->strideToPrev = req->adress - req->prev->adress;
+    
     //this->last->index = this->last->prev->index +1;
     this->length++;
     
@@ -79,7 +80,10 @@ int List::getStrides(int len) {
     return strides;
 }
 */
-bool List::judge() {
+bool List::judge(Addr pf_addr) {
+    if (pf_addr > MAX_PHYS_MEM_ADDR) {
+        return false;
+    }
     int i;
     const int LIMIT = std::min(CONSECUTIVE_STRIDES, this->length);
     Request* currentReq = this->last;
@@ -133,7 +137,7 @@ void prefetch_access(AccessStat stat)
      * Issue a prefetch request if a demand miss occured,
      * and the block is not already in cache.
      */
-    if (stat.miss && !in_cache(pf_addr) && list->judge()) {
+    if (stat.miss && !in_cache(pf_addr) && list->judge(pf_addr)) {
         //DPRINTF(HWPrefetch, "Issue address: %s\n",pf_addr);
         issue_prefetch(pf_addr);
     }
