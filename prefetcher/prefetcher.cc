@@ -80,8 +80,9 @@ int List::getStrides(int len) {
 */
 bool List::judge() {
     int i;
+    const int LIMIT = min(CONSECUTIVE_STRIDES, this->length);
     Request* currentReq = this->last;
-    for (i=0; i<CONSECUTIVE_STRIDES; i++) {
+    for (i=0; i<LIMIT; i++) {
         if (currentReq->strideToPrev == currentReq->prev->strideToPrev) {
             continue;
         } else {
