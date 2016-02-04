@@ -16,6 +16,7 @@ simulate:
 		<${HOME}/TDT4260/prefetcher/prefetcher.cc
 
 .PHONY: stats
-stats: simulate
-	(cd /work/${USER}/run_${ID}/ && ${HOME}/tools/m5/stats.py) \
-		>> ${HOME}/stats.txt
+stats:
+	cd /work/${USER}/run_${ID}/ \
+	&& ${HOME}/tools/m5/stats.py ${NAME} all \
+	&& ${HOME}/tools/m5/stats.py all all
