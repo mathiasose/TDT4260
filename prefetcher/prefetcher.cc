@@ -7,8 +7,10 @@
 #include "cmath"
 #include "interface.hh"
 
-static const int MAX_LENGTH = 200;
-static const int CONSECUTIVE_STRIDES = 3;
+static const int MAX_LENGTH = 200; //MAX LENGTH OF LIST OF PREVIOUS PREFETCH REQUESTS
+static const int CONSECUTIVE_STRIDES = 3; //HOW MANY STRIDES TO COMPARE BEFORE ISSUING PREFETCH BASED ON STRIDE
+static const int LOCAL_SURROUND = 4; //HOW MANY ADDRESSES TO PREFETCH ON BOTH SIDES OF REQUESTED ADDRESS BASED ON LOCALITY
+
 
 
 struct Request {
@@ -27,8 +29,7 @@ struct List {
     void push(Request* req);
     //int getStrides(int len);
     void shift();
-    bool judge(Addr pf_addr);
-    
+    bool checkStrides();
     //int strides[MAX_LENGTH];
     int length;
     Request * first, * last;
@@ -80,10 +81,7 @@ int List::getStrides(int len) {
     return strides;
 }
 */
-bool List::judge(Addr pf_addr) {
-    if (pf_addr > MAX_PHYS_MEM_ADDR) {
-        return false;
-    }
+bool List::checkStrides() {
     int i;
     const int LIMIT = std::min(CONSECUTIVE_STRIDES, this->length);
     Request* currentReq = this->last;
@@ -127,19 +125,25 @@ void prefetch_access(AccessStat stat)
         list->push(req);
         //DPRINTF(HWPrefetch, "PUSHED!\n");
     }
-    
-    Addr pf_addr = stat.mem_addr + list->last->strideToPrev;
-    //DPRINTF(HWPrefetch, "stride: %i\n",list->last->strideToPrev);
-
-    
-
-    /*
-     * Issue a prefetch request if a demand miss occured,
-     * and the block is not already in cache.
-     */
-    if (stat.miss && !in_cache(pf_addr) && list->judge(pf_addr)) {
-        //DPRINTF(HWPrefetch, "Issue address: %s\n",pf_addr);
-        issue_prefetch(pf_addr);
+    if (stat.miss){
+        if (list->checkStrides()) {
+            Addr stride_addr = stat.mem_addr + list->last->strideToPrev;
+            if (!in_cache(stride_addr) && (stride_addr < MAX_PHYS_MEM_ADDR)) {
+                issue_prefetch(stride_addr);
+            }
+        } else {
+            int i;
+            if (stat.mem_addr + (LOCAL_SURROUND/2)*BLOCK_SIZE < MAX_PHYS_MEM_ADDR){
+                for (i=1; i<=LOCAL_SURROUND/2; i++) {
+                    if (!in_cache(stat.mem_addr + i*BLOCK_SIZE)) {
+                        issue_prefetch(stat.mem_addr + i*BLOCK_SIZE);
+                    }
+                    if (!in_cache(stat.mem_addr - i*BLOCK_SIZE)) {
+                        issue_prefetch(stat.mem_addr - i*BLOCK_SIZE);
+                    }
+                }
+            }
+        }
     }
 }
 
