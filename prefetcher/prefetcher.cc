@@ -38,7 +38,7 @@ List::List() : first(NULL), last(NULL), length(0){}
 void List::push(Request* req) {
     this->last->next = req;
     this->last = req;
-    this->last->strideToPrev = this->last->prev->adress - this->last->adress;
+    this->last->strideToPrev = req->adress - req->prev->adress;
     this->last->next = NULL;
     //this->last->index = this->last->prev->index +1;
     this->length++;
