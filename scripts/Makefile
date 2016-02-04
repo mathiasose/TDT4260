@@ -8,7 +8,7 @@
 # 	ID=123 NAME=prefetcher_with_latency make simulate
 #
 ID?=0
-NAME?="test"
+NAME?=unnamed-prefetcher
 
 .PHONY: simulate
 simulate:
@@ -17,6 +17,6 @@ simulate:
 
 .PHONY: stats
 stats:
-	cd /work/${USER}/run_${ID}/ \
+	(cd /work/${USER}/run_${ID}/ \
 	&& ${HOME}/tools/m5/stats.py ${NAME} all \
-	&& ${HOME}/tools/m5/stats.py all all
+	&& ${HOME}/tools/m5/stats.py all all) >> ${HOME}/stats_${NAME}.txt
