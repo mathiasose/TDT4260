@@ -4,6 +4,7 @@
  * was just accessed. It also ignores requests to blocks already in the cache.
  */
 
+#include "cmath"
 #include "interface.hh"
 
 static const int MAX_LENGTH = 200;
@@ -19,7 +20,7 @@ struct Request {
     Request * next, * prev;
 };
 
-Request::Request(Addr addr, bool ms, Request *prv) : adress(addr), miss(ms), prev(prv), next(NULL){}
+Request::Request(Addr addr, bool ms, Request *prv) : miss(ms), adress(addr), strideToPrev(0), next(NULL), prev(prv){}
 
 struct List {
     List();
@@ -33,7 +34,7 @@ struct List {
     Request * first, * last;
 };
 
-List::List() : first(NULL), last(NULL), length(0){}
+List::List() : length(0), first(NULL), last(NULL){}
 
 void List::push(Request* req) {
     this->last->next = req;
@@ -80,7 +81,7 @@ int List::getStrides(int len) {
 */
 bool List::judge() {
     int i;
-    const int LIMIT = min(CONSECUTIVE_STRIDES, this->length);
+    const int LIMIT = std::min(CONSECUTIVE_STRIDES, this->length);
     Request* currentReq = this->last;
     for (i=0; i<LIMIT; i++) {
         if (currentReq->strideToPrev == currentReq->prev->strideToPrev) {
@@ -104,32 +105,36 @@ void prefetch_init(void)
     /* This is the place to initialize data structures. */
     list = new List();
 
-    DPRINTF(HWPrefetch, "Initialized sequential-on-access prefetcher\n");
+    DPRINTF(HWPrefetch, "list length: %s\n",list->length);
 }
 
 void prefetch_access(AccessStat stat)
 {
-    /* pf_addr is now an address within the _next_ cache block */
+    //DPRINTF(HWPrefetch, "request address: %s\n",stat.mem_addr);
+    //DPRINTF(HWPrefetch, "last: %s!\n",list->last->adress);
     Request * req = new Request(stat.mem_addr,stat.miss,list->last);
     
     if (!(list->first)){
+        //DPRINTF(HWPrefetch, "FIRST!\n");
         list->first = req;
         list->last = req;
         //list->last->index = 0;
     } else {
         list->push(req);
+        //DPRINTF(HWPrefetch, "PUSHED!\n");
     }
     
-    
     Addr pf_addr = stat.mem_addr + list->last->strideToPrev;
-    
+    //DPRINTF(HWPrefetch, "stride: %i\n",list->last->strideToPrev);
+
     
 
     /*
      * Issue a prefetch request if a demand miss occured,
      * and the block is not already in cache.
      */
-    if (stat.miss && !in_cache(pf_addr) && in_mshr_queue(pf_addr) && list->judge()) {
+    if (stat.miss && !in_cache(pf_addr) && list->judge()) {
+        //DPRINTF(HWPrefetch, "Issue address: %s\n",pf_addr);
         issue_prefetch(pf_addr);
     }
 }
