@@ -129,7 +129,7 @@ void prefetch_access(AccessStat stat)
      * Issue a prefetch request if a demand miss occured,
      * and the block is not already in cache.
      */
-    if (stat.miss && !in_cache(pf_addr) && !in_mshr_queue(pf_addr) && list->judge()) {
+    if (stat.miss && !in_cache(pf_addr) && in_mshr_queue(pf_addr) && list->judge()) {
         issue_prefetch(pf_addr);
     }
 }
