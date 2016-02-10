@@ -11,8 +11,8 @@
  * ----------------------------------------------------------------------------
  * Description
  * ----------------------------------------------------------------------------
- * In SDP, the prefetcher stores load instructions into a table. Each table
- * entry contains the following:
+ * In SDP, the prefetcher stores load instructions into a "reference table".
+ * Each table entry contains the following:
  *     +---------------------------------------------+
  *     |  PC address  |  Last address  |  Valid bit  |
  *     +---------------------------------------------+
@@ -32,9 +32,10 @@
 
 #include "interface.hh"
 
-#define TABLE_SIZE 10
+#define TABLE_SIZE 8
 
 
+// A table entry.
 struct LoadInstruction {
     Addr pc;
     Addr prev_addr;
@@ -42,7 +43,9 @@ struct LoadInstruction {
 };
 
 
-// Implemented as a direct-mapped cache.
+// The reference table.
+//
+// Currently implemented as a direct-mapped cache.
 struct ReferenceTable {
     LoadInstruction table[TABLE_SIZE];
 
@@ -50,9 +53,10 @@ struct ReferenceTable {
     bool has(Addr pc);
     void add(Addr pc, Addr prev_addr);
     LoadInstruction * get(Addr pc);
-};
+} reference_table;
 
 
+// Initialize the reference table.
 ReferenceTable::ReferenceTable() {
     for (int i = 0; i < TABLE_SIZE; ++i) {
         table[i].pc = NULL;
@@ -62,12 +66,14 @@ ReferenceTable::ReferenceTable() {
 }
 
 
+// Return true if the table contains the load instruction.
 bool ReferenceTable::has(Addr pc) {
     int i = pc % TABLE_SIZE;
     return (table[i].pc == pc);
 }
 
 
+// Create a new entry in the reference table.
 void ReferenceTable::add(Addr pc, Addr prev_addr) {
     int i = pc % TABLE_SIZE;
     table[i].pc = pc;
@@ -76,12 +82,10 @@ void ReferenceTable::add(Addr pc, Addr prev_addr) {
 }
 
 
+// Return the entry matching the specified address.
 LoadInstruction * ReferenceTable::get(Addr pc) {
     return &table[pc % TABLE_SIZE];
 }
-
-
-ReferenceTable ref_table;
 
 
 void prefetch_init(void)
@@ -89,6 +93,7 @@ void prefetch_init(void)
     DPRINTF(HWPrefetch, "Initialized stride-directed prefetcher\n");
 	// Not used.
 }
+
 
 void prefetch_access(AccessStat stat)
 {
@@ -100,10 +105,10 @@ void prefetch_access(AccessStat stat)
         return;
     }
 
-    if (ref_table.has(stat.pc)) {
+    if (reference_table.has(stat.pc)) {
         
         // Compute prefetch address.
-        instruction = ref_table.get(stat.pc);
+        instruction = reference_table.get(stat.pc);
         stride = stat.mem_addr - instruction->prev_addr;
         pf_addr = stat.mem_addr + stride;
 
@@ -115,9 +120,10 @@ void prefetch_access(AccessStat stat)
         // Update the table entry.
         instruction->prev_addr = stat.mem_addr;
     } else {
-        ref_table.add(stat.pc, stat.mem_addr);
+        reference_table.add(stat.pc, stat.mem_addr);
     }
 }
+
 
 void prefetch_complete(Addr addr) {
 	// Not used.
