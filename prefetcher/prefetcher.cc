@@ -92,17 +92,28 @@ void prefetch_init(void)
 
 void prefetch_access(AccessStat stat)
 {
+    LoadInstruction * instruction;
+    int stride;
+    Addr pf_addr;
+    
     if (!stat.miss) {
         return;
     }
 
     if (ref_table.has(stat.pc)) {
-        LoadInstruction * instr = ref_table.get(stat.pc);
-        int stride = stat.mem_addr - instr->prev_addr;
-        Addr pf_addr = stat.mem_addr + stride;
+        
+        // Compute prefetch address.
+        instruction = ref_table.get(stat.pc);
+        stride = stat.mem_addr - instruction->prev_addr;
+        pf_addr = stat.mem_addr + stride;
+
+        // Issue the prefetch.
         if (pf_addr <= MAX_PHYS_MEM_ADDR && !in_cache(pf_addr)) {
             issue_prefetch(pf_addr);
         }
+
+        // Update the table entry.
+        instruction->prev_addr = stat.mem_addr;
     } else {
         ref_table.add(stat.pc, stat.mem_addr);
     }
