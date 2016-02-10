@@ -32,19 +32,82 @@
 
 #include "interface.hh"
 
+#define TABLE_SIZE 10
+
+
+struct LoadInstruction {
+    Addr pc;
+    Addr prev_addr;
+    bool valid;
+};
+
+
+// Implemented as a direct-mapped cache.
+struct ReferenceTable {
+    LoadInstruction table[TABLE_SIZE];
+
+    ReferenceTable();
+    bool has(Addr pc);
+    void add(Addr pc, Addr prev_addr);
+    LoadInstruction * get(Addr pc);
+};
+
+
+ReferenceTable::ReferenceTable() {
+    for (int i = 0; i < TABLE_SIZE; ++i) {
+        table[i].pc = NULL;
+        table[i].prev_addr = NULL;
+        table[i].valid = false;
+    }
+}
+
+
+bool ReferenceTable::has(Addr pc) {
+    int i = pc % TABLE_SIZE;
+    return (table[i].pc == pc);
+}
+
+
+void ReferenceTable::add(Addr pc, Addr prev_addr) {
+    int i = pc % TABLE_SIZE;
+    table[i].pc = pc;
+    table[i].prev_addr = prev_addr;
+    table[i].valid = true;
+}
+
+
+LoadInstruction * ReferenceTable::get(Addr pc) {
+    return &table[pc % TABLE_SIZE];
+}
+
+
+ReferenceTable ref_table;
+
 
 void prefetch_init(void)
 {
     DPRINTF(HWPrefetch, "Initialized stride-directed prefetcher\n");
-
-	// TODO: Initialize prefetcher.
+	// Not used.
 }
 
 void prefetch_access(AccessStat stat)
 {
-	// TODO: Implement.
+    if (!stat.miss) {
+        return;
+    }
+
+    if (ref_table.has(stat.pc)) {
+        LoadInstruction * instr = ref_table.get(stat.pc);
+        int stride = stat.mem_addr - instr->prev_addr;
+        Addr pf_addr = stat.mem_addr + stride;
+        if (pf_addr <= MAX_PHYS_MEM_ADDR && !in_cache(pf_addr)) {
+            issue_prefetch(pf_addr);
+        }
+    } else {
+        ref_table.add(stat.pc, stat.mem_addr);
+    }
 }
 
 void prefetch_complete(Addr addr) {
-	// TODO: Implement.
+	// Not used.
 }
