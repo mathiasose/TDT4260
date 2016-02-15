@@ -32,7 +32,7 @@
 
 #include "interface.hh"
 
-#define TABLE_SIZE 8
+#define TABLE_SIZE 128
 
 
 // A table entry.
@@ -100,10 +100,6 @@ void prefetch_access(AccessStat stat)
     LoadInstruction * instruction;
     int stride;
     Addr pf_addr;
-    
-    if (!stat.miss) {
-        return;
-    }
 
     if (reference_table.has(stat.pc)) {
         
