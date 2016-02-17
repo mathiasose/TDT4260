@@ -37,7 +37,6 @@
 
 // A table entry.
 struct LoadInstruction {
-    Addr pc;
     Addr prev_addr;
 };
 
@@ -58,7 +57,6 @@ struct ReferenceTable {
 // Initialize the reference table.
 ReferenceTable::ReferenceTable() {
     for (int i = 0; i < TABLE_SIZE; ++i) {
-        table[i].pc = NULL;
         table[i].prev_addr = NULL;
     }
 }
@@ -67,21 +65,21 @@ ReferenceTable::ReferenceTable() {
 // Return true if the table contains the load instruction.
 bool ReferenceTable::has(Addr pc) {
     int i = pc % TABLE_SIZE;
-    return (table[i].pc == pc);
+    return (table[i].prev_addr != NULL);
 }
 
 
 // Create a new entry in the reference table.
 void ReferenceTable::add(Addr pc, Addr prev_addr) {
     int i = pc % TABLE_SIZE;
-    table[i].pc = pc;
     table[i].prev_addr = prev_addr;
 }
 
 
 // Return the entry matching the specified address.
 LoadInstruction * ReferenceTable::get(Addr pc) {
-    return &table[pc % TABLE_SIZE];
+    int i = pc % TABLE_SIZE;
+    return &table[i];
 }
 
 
