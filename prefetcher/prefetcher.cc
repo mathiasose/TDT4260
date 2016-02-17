@@ -1,7 +1,6 @@
 /* ----------------------------------------------------------------------------
- * Stride Directed Prefetcher
+ * Simple Stride Directed Prefetcher (SSDP)
  * ----------------------------------------------------------------------------
- *
  * A prefetcher based on the approach "Stride Directed Prefetching (SDP)"
  * as described in the doctoral thesis:
  *     Reducing Memory Latency by Improving Resource Utilization
@@ -11,23 +10,21 @@
  * ----------------------------------------------------------------------------
  * Description
  * ----------------------------------------------------------------------------
- * In SDP, the prefetcher stores load instructions into a "reference table".
- * Each table entry contains the following:
- *     +---------------------------------------------+
- *     |  PC address  |  Last address  |  Valid bit  |
- *     +---------------------------------------------+
+ * When the prefetcher receives a load instruction, it uses the instruction
+ * address as an index into a "reference table":
+ *     +----------------+
+ *     |  Last address  |
+ *     +----------------+
  *
- * PC address is the address of the load instruction. Last address is the last
- * address referenced by the load instruction. Valid bit indicates whether the
- * entry is still valid.
+ * The reference table contains the memory address previously referenced by the
+ * instruction. The old memory address is subtracted from the new one to
+ * generate a stride, and that stride is added to the new address to generate
+ * the prefetch address.
  *
- * The first time a load instruction is encountered, it is simplt stored in the
- * table along with the referenced memory address.
- *
- * When an instruction is encountered that already resides in the table, a
- * stride is computed from the new and old referenced memory addresses. Then, a
- * prefetch request is issued for the data located at (new address + stride).
- *
+ * NOTE: Many load instructions map to the same table entry and will replace
+ * each other. When a load instruction is replaced, an invalid stride will be
+ * generated because of the assumption that the current load instruction always
+ * owns the corresponding entry.
  */
 
 #include "interface.hh"
