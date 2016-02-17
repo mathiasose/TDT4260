@@ -39,7 +39,6 @@
 struct LoadInstruction {
     Addr pc;
     Addr prev_addr;
-    bool valid;
 };
 
 
@@ -61,7 +60,6 @@ ReferenceTable::ReferenceTable() {
     for (int i = 0; i < TABLE_SIZE; ++i) {
         table[i].pc = NULL;
         table[i].prev_addr = NULL;
-        table[i].valid = false;
     }
 }
 
@@ -78,7 +76,6 @@ void ReferenceTable::add(Addr pc, Addr prev_addr) {
     int i = pc % TABLE_SIZE;
     table[i].pc = pc;
     table[i].prev_addr = prev_addr;
-    table[i].valid = true;
 }
 
 
