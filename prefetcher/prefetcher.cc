@@ -33,50 +33,27 @@
 
 
 // A table entry.
-struct LoadInstruction {
-    Addr prev_addr;
-};
-
-
-// The reference table.
-//
-// Currently implemented as a direct-mapped cache.
-struct ReferenceTable {
-    LoadInstruction table[TABLE_SIZE];
-
-    ReferenceTable();
-    bool has(Addr pc);
-    void add(Addr pc, Addr prev_addr);
-    LoadInstruction * get(Addr pc);
-} reference_table;
-
-
-// Initialize the reference table.
-ReferenceTable::ReferenceTable() {
-    for (int i = 0; i < TABLE_SIZE; ++i) {
-        table[i].prev_addr = NULL;
-    }
-}
+Addr table[TABLE_SIZE] = {0};
 
 
 // Return true if the table contains the load instruction.
-bool ReferenceTable::has(Addr pc) {
+bool has(Addr pc) {
     int i = pc % TABLE_SIZE;
-    return (table[i].prev_addr != NULL);
+    return (table[i] != 0);
 }
 
 
-// Create a new entry in the reference table.
-void ReferenceTable::add(Addr pc, Addr prev_addr) {
+// Set an entry in the reference table.
+void set(Addr pc, Addr prev_addr) {
     int i = pc % TABLE_SIZE;
-    table[i].prev_addr = prev_addr;
+    table[i] = prev_addr;
 }
 
 
 // Return the entry matching the specified address.
-LoadInstruction * ReferenceTable::get(Addr pc) {
+Addr get(Addr pc) {
     int i = pc % TABLE_SIZE;
-    return &table[i];
+    return table[i];
 }
 
 
@@ -89,27 +66,23 @@ void prefetch_init(void)
 
 void prefetch_access(AccessStat stat)
 {
-    LoadInstruction * instruction;
     int stride;
     Addr pf_addr;
 
-    if (reference_table.has(stat.pc)) {
+    if (has(stat.pc)) {
         
         // Compute prefetch address.
-        instruction = reference_table.get(stat.pc);
-        stride = stat.mem_addr - instruction->prev_addr;
+        stride = stat.mem_addr - get(stat.pc);
         pf_addr = stat.mem_addr + stride;
 
         // Issue the prefetch.
         if (pf_addr <= MAX_PHYS_MEM_ADDR && !in_cache(pf_addr)) {
             issue_prefetch(pf_addr);
         }
-
-        // Update the table entry.
-        instruction->prev_addr = stat.mem_addr;
-    } else {
-        reference_table.add(stat.pc, stat.mem_addr);
     }
+
+    // Update the table entry.
+    set(stat.pc, stat.mem_addr);
 }
 
 
