@@ -51,7 +51,7 @@ struct ReferenceTable {
 
     ReferenceTable();
     bool has(Addr pc);
-    void add(Addr pc, Addr prev_addr);
+    void set(Addr pc, Addr prev_addr);
     LoadInstruction * get(Addr pc);
 } reference_table;
 
@@ -74,7 +74,7 @@ bool ReferenceTable::has(Addr pc) {
 
 
 // Create a new entry in the reference table.
-void ReferenceTable::add(Addr pc, Addr prev_addr) {
+void ReferenceTable::set(Addr pc, Addr prev_addr) {
     int i = pc % TABLE_SIZE;
     table[i].pc = pc;
     table[i].prev_addr = prev_addr;
@@ -116,7 +116,7 @@ void prefetch_access(AccessStat stat)
         // Update the table entry.
         instruction->prev_addr = stat.mem_addr;
     } else {
-        reference_table.add(stat.pc, stat.mem_addr);
+        reference_table.set(stat.pc, stat.mem_addr);
     }
 }
 
