@@ -1,34 +1,46 @@
 /* ----------------------------------------------------------------------------
- * Stride Directed Prefetcher
+ * Reference Prediction Prefetcher (RPP)
  * ----------------------------------------------------------------------------
- *
- * A prefetcher based on the approach "Stride Directed Prefetching (SDP)"
- * as described in the doctoral thesis:
+ * A prefetcher based on "Reference Prediction Tables" as described in the
+ * doctoral thesis:
  *     Reducing Memory Latency by Improving Resource Utilization
  *     by Marius Grannæs
  *     http://www.idi.ntnu.no/research/doctor_theses/grannas.pdf
  *
+ * A detailed description of the the technique is given in
+ *     Stride Directed Prefetching in Scalar Processors
+ *     by Fu et al.
+ *     http://www.cecs.pdx.edu/~alaa/ece587/papers/chen_ieeetoc_1995.pdf
+ *
  * ----------------------------------------------------------------------------
  * Description
  * ----------------------------------------------------------------------------
- * In SDP, the prefetcher stores load instructions into a "reference table".
- * Each table entry contains the following:
+ * Similar to the stride directed prefetcher, the prefetcher uses a Reference
+ * Prediction Table (RPT) to store memory references. The new feature is the
+ * state field.
  *     +------------------------------------------+
  *     |  Tag  |  Prev_addr  |  Stride  |  State  |
  *     +------------------------------------------+
+ * 
+ * There are four different states:
+ *     - INITIAL
+ *     - TRANSIENT
+ *     - STEADY
+ *     - NO_PREDICTION
  *
- * PC address is the address of the load instruction. Last address is the last
- * address referenced by the load instruction. Valid bit indicates whether the
- * entry is still valid.
+ * The state field is used to give a table entry history. An entry in state
+ * STEADY has made two or more correct predictions recently, while an entry in
+ * state NO_PREDICTION has two or more incorrect predictions recently.
+ * Depending on whether the predictions are correct, the state of an entry
+ * changes in the following manner:
+ *     Correct:    STEADY --> TRANSIENT --> NO_PREDICTION
+ *     Incorrect:  STEADY <-- TRANSIENT <-- NO_PREDICTION
  *
- * The first time a load instruction is encountered, it is simplt stored in the
- * table along with the referenced memory address.
+ *     (The INITIAL state enters either STEADY or TRANSIENT)
  *
- * When an instruction is encountered that already resides in the table, a
- * stride is computed from the new and old referenced memory addresses. Then, a
- * prefetch request is issued for the data located at (new address + stride).
- *
+ * An entry generates a prefetch if it is not in the state NO_PREDICTION.
  */
+
 
 #include "interface.hh"
 
