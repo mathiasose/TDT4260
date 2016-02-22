@@ -33,8 +33,8 @@
  * state NO_PREDICTION has two or more incorrect predictions recently.
  * Depending on whether the predictions are correct, the state of an entry
  * changes in the following manner:
- *     Correct:    STEADY --> TRANSIENT --> NO_PREDICTION
- *     Incorrect:  STEADY <-- TRANSIENT <-- NO_PREDICTION
+ *     Correct:   STEADY <-- TRANSIENT <-- NO_PREDICTION
+ *     Incorrect: STEADY --> TRANSIENT --> NO_PREDICTION
  *
  *     (The INITIAL state enters either STEADY or TRANSIENT)
  *
