@@ -8,8 +8,9 @@
  *     http://www.idi.ntnu.no/research/doctor_theses/grannas.pdf
  *
  * A detailed description of the the technique is given in
- *     Stride Directed Prefetching in Scalar Processors
- *     by Fu et al.
+ *     Effective Hardware-Based Data Prefetching for High-Performance
+ *     Processors
+ *     by Chen et al.
  *     http://www.cecs.pdx.edu/~alaa/ece587/papers/chen_ieeetoc_1995.pdf
  *
  * ----------------------------------------------------------------------------
