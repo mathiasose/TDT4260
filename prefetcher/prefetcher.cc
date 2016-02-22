@@ -101,6 +101,7 @@ void prefetch_access(AccessStat stat)
     ReferencePrediction * ref;
     bool correct;
     Addr pf_addr;
+    PredictionState prev_state;
 
     // Enter new prediction into the table.
 	if (!reference_table.has(stat.pc)) {
@@ -114,6 +115,7 @@ void prefetch_access(AccessStat stat)
     
     ref = reference_table.get(stat.pc);
     correct = ref->predicts(stat.mem_addr);
+    prev_state = ref->state;
 
     // Compute the next state.
     if (correct) {
@@ -132,9 +134,15 @@ void prefetch_access(AccessStat stat)
         }
     }
 
+
     // Update entry.
-    ref->stride = stat.mem_addr - ref->prev_addr;
-    ref->prev_addr = stat.mem_addr;
+    if (prev_state == STEADY && !correct) {
+        // Do not update the stride. This gives the prediction a chance to
+        // return to the STEADY state if the next prediction is correct.
+    } else {
+        ref->stride = stat.mem_addr - ref->prev_addr;
+        ref->prev_addr = stat.mem_addr;
+    }
 
     // Issue prefetch.
     pf_addr = stat.mem_addr + ref->stride;
