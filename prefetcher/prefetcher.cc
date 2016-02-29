@@ -57,19 +57,20 @@ struct ReferencePrediction {
     Addr tag;
     Addr prev_addr;
 	uint32_t stride;
+    uint32_t times;
     PredictionState state;
 
     ReferencePrediction();
-    bool predicts(Addr target);
+    bool is_strided(Addr target);
 };
 
 
 ReferencePrediction::ReferencePrediction()
-    : tag(0), prev_addr(0), stride(0), state(INITIAL)
+    : tag(0), prev_addr(0), stride(0), times(1), state(INITIAL)
 { }
 
 
-bool ReferencePrediction::predicts(Addr target) {
+bool ReferencePrediction::is_strided(Addr target) {
     return target == prev_addr + stride;
 }
 
@@ -97,12 +98,20 @@ ReferencePrediction * PredictionTable::get(Addr pc) {
 }
 
 
+void try_prefetch(Addr addr) {
+    if (!in_cache(addr)
+            && !in_mshr_queue(addr) 
+            && addr <= MAX_PHYS_MEM_ADDR) {
+        issue_prefetch(addr);
+    }
+}
+
+
 void prefetch_access(AccessStat stat)
 {
     ReferencePrediction * ref;
-    bool correct;
+    bool strided;
     Addr pf_addr;
-    PredictionState prev_state;
 
     // Enter new prediction into the table.
 	if (!reference_table.has(stat.pc)) {
@@ -110,55 +119,72 @@ void prefetch_access(AccessStat stat)
         ref->tag = stat.pc;
         ref->prev_addr = stat.mem_addr;
         ref->stride = 0;
+        ref->times = 1;
         ref->state = INITIAL;
         return;
 	}
     
     ref = reference_table.get(stat.pc);
-    correct = ref->predicts(stat.mem_addr);
-    prev_state = ref->state;
-
-    // Compute the next state.
-    if (correct) {
-        switch (ref->state) {
-            case INITIAL:        ref->state = STEADY;     break;
-            case TRANSIENT:      ref->state = STEADY;     break;
-            case STEADY:         ref->state = STEADY;     break;
-            case NO_PREDICTION:  ref->state = TRANSIENT;  break;
-        }
-    } else {
-        switch (ref->state) {
-            case STEADY:         ref->state = INITIAL;        break;
-            case INITIAL:        ref->state = TRANSIENT;      break;
-            case TRANSIENT:      ref->state = NO_PREDICTION;  break;
-            case NO_PREDICTION:  ref->state = NO_PREDICTION;  break;
-        }
-    }
+    strided = ref->is_strided(stat.mem_addr);
 
 
-    // Update entry.
-    if (prev_state == STEADY && !correct) {
-        // Do not update the stride. This gives the prediction a chance to
-        // return to the STEADY state if the next prediction is correct.
-    } else {
+    if (!strided && ref->state == INITIAL) {
+
         ref->stride = stat.mem_addr - ref->prev_addr;
-        ref->prev_addr = stat.mem_addr;
+        ref->state = TRANSIENT;
+
+    } else if (strided
+            && (ref->state == INITIAL 
+                || ref->state == TRANSIENT 
+                || ref->state == STEADY)) {
+
+        // Enter steady state.
+        ref->state = STEADY;
+
+    } else if (!strided && ref->state == STEADY) {
+
+        // Exit steady state.
+        //
+        // Leave stride unchanged. This increases performance for strided
+        // access sequences containing single unstrided accesses.
+        ref->state = INITIAL;
+
+    } else if (!strided && ref->state == TRANSIENT) {
+
+        // Irregular pattern detected: enter NO_PREDICTION.
+        ref->state = NO_PREDICTION;
+        ref->times = 1;
+
+    } else if (strided && ref->state == NO_PREDICTION) {
+
+        // Regular pattern detected: exit NO_PREDICTION.
+        ref->state = TRANSIENT;
+
+    } else if (!strided && ref->state == NO_PREDICTION) {
+
+        // Irregular pattern: stay in NO_PREDICTION.
+        ref->stride = stat.mem_addr - ref->prev_addr;
     }
 
     // Issue prefetch.
-    pf_addr = stat.mem_addr + ref->stride;
-    if (ref->state != NO_PREDICTION
-            && pf_addr <= MAX_PHYS_MEM_ADDR
-            && !in_cache(pf_addr)
-            && !in_mshr_queue(pf_addr)) {
-
-        issue_prefetch(pf_addr);
+    pf_addr = stat.mem_addr + ref->stride * ref->times;
+    if (ref->state != NO_PREDICTION) {
+        try_prefetch(pf_addr);
     }
+
+    // If the previous prefetch has not completed yet.
+    if (strided && ref->state == STEADY && !in_cache(ref->prev_addr)) {
+
+        // Increase the lookahead and issue an extra prefetch.
+        ref->times++;
+        try_prefetch(stat.mem_addr + ref->stride * ref->times);
+    }
+
+    ref->prev_addr = stat.mem_addr;
 }
 
 
-void prefetch_init(void)
-{
+void prefetch_init(void) {
     DPRINTF(HWPrefetch, "Initialized stride-directed prefetcher\n");
 	// Not used.
 }
