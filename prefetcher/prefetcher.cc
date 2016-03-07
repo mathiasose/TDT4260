@@ -46,7 +46,7 @@
 #include "interface.hh"
 
 #define TABLE_SIZE 256
-#define STRIDE_MUL 4
+#define MAX_STRIDE_MUL 4
 
 
 enum PredictionState {
@@ -57,7 +57,8 @@ enum PredictionState {
 struct ReferencePrediction {
     Addr tag;
     Addr prev_addr;
-	uint32_t stride;
+	uint64_t stride;
+    unsigned times;
     PredictionState state;
 
     ReferencePrediction();
@@ -66,7 +67,7 @@ struct ReferencePrediction {
 
 
 ReferencePrediction::ReferencePrediction()
-    : tag(0), prev_addr(0), stride(0), state(INITIAL)
+    : tag(0), prev_addr(0), stride(0), times(1), state(INITIAL)
 { }
 
 
@@ -122,6 +123,7 @@ void prefetch_access(AccessStat stat)
         ref->tag = stat.pc;
         ref->prev_addr = stat.mem_addr;
         ref->stride = 0;
+        ref->times = 1;
         ref->state = INITIAL;
         return;
 	}
@@ -147,6 +149,13 @@ void prefetch_access(AccessStat stat)
         }
     }
 
+    // Update the stride multiplier.
+    if (correct) {
+        if (ref->times < MAX_STRIDE_MUL) { ++(ref->times); }
+    } else {
+        if (ref->times > 1) { --(ref->times); }
+    }
+
     // Update entry.
     if (prev_state == STEADY && !correct) {
         // Do not update the stride. This gives the prediction a chance to
@@ -162,11 +171,11 @@ void prefetch_access(AccessStat stat)
         if (ref->stride == old_stride) {
 
             // Stride unchanged: prefetch a single address.
-            try_prefetch(stat.mem_addr + ref->stride * STRIDE_MUL);
+            try_prefetch(stat.mem_addr + ref->stride * ref->times);
         } else {
 
-            // Stride changed: prefetch STRIDE_MUL addresses.
-            for (int i=1; i<=STRIDE_MUL; ++i) {
+            // Stride changed: prefetch addresses up to the stride multiplier.
+            for (int i=1; i<=ref->times; ++i) {
                 try_prefetch(stat.mem_addr + ref->stride * i);
             }
         }
