@@ -45,8 +45,8 @@
 
 #include "interface.hh"
 
-#define TABLE_SIZE 64
-#define STRIDE_MUL 2
+#define TABLE_SIZE 256
+#define STRIDE_MUL 4
 
 
 enum PredictionState {
@@ -98,12 +98,23 @@ ReferencePrediction * PredictionTable::get(Addr pc) {
 }
 
 
+void try_prefetch(Addr pf_addr) {
+
+    // Issue prefetch.
+    if (pf_addr <= MAX_PHYS_MEM_ADDR
+            && !in_cache(pf_addr)
+            && !in_mshr_queue(pf_addr)) {
+        issue_prefetch(pf_addr);
+    }
+}
+
+
 void prefetch_access(AccessStat stat)
 {
     ReferencePrediction * ref;
     bool correct;
-    Addr pf_addr;
     PredictionState prev_state;
+    uint64_t old_stride; 
 
     // Enter new prediction into the table.
 	if (!reference_table.has(stat.pc)) {
@@ -136,24 +147,29 @@ void prefetch_access(AccessStat stat)
         }
     }
 
-
     // Update entry.
     if (prev_state == STEADY && !correct) {
         // Do not update the stride. This gives the prediction a chance to
         // return to the STEADY state if the next prediction is correct.
     } else {
+        old_stride = ref->stride;
         ref->stride = stat.mem_addr - ref->prev_addr;
         ref->prev_addr = stat.mem_addr;
     }
 
-    // Issue prefetch.
-    pf_addr = stat.mem_addr + ref->stride * STRIDE_MUL;
-    if (ref->state != NO_PREDICTION
-            && pf_addr <= MAX_PHYS_MEM_ADDR
-            && !in_cache(pf_addr)
-            && !in_mshr_queue(pf_addr)) {
+    // Issue prefetches.
+    if (ref->state != NO_PREDICTION) {
+        if (ref->stride == old_stride) {
 
-        issue_prefetch(pf_addr);
+            // Stride unchanged: prefetch a single address.
+            try_prefetch(stat.mem_addr + ref->stride * STRIDE_MUL);
+        } else {
+
+            // Stride changed: prefetch STRIDE_MUL addresses.
+            for (int i=1; i<=STRIDE_MUL; ++i) {
+                try_prefetch(stat.mem_addr + ref->stride * i);
+            }
+        }
     }
 }
 
