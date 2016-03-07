@@ -33,7 +33,7 @@
 
 
 // A table entry.
-struct LoadInstruction {
+struct Reference {
     Addr prev_addr;
 };
 
@@ -42,12 +42,12 @@ struct LoadInstruction {
 //
 // Currently implemented as a direct-mapped cache.
 struct ReferenceTable {
-    LoadInstruction table[TABLE_SIZE];
+    Reference table[TABLE_SIZE];
 
     ReferenceTable();
     bool has(Addr pc);
     void add(Addr pc, Addr prev_addr);
-    LoadInstruction * get(Addr pc);
+    Reference * get(Addr pc);
 } reference_table;
 
 
@@ -74,7 +74,7 @@ void ReferenceTable::add(Addr pc, Addr prev_addr) {
 
 
 // Return the entry matching the specified address.
-LoadInstruction * ReferenceTable::get(Addr pc) {
+Reference * ReferenceTable::get(Addr pc) {
     int i = pc % TABLE_SIZE;
     return &table[i];
 }
@@ -89,15 +89,15 @@ void prefetch_init(void)
 
 void prefetch_access(AccessStat stat)
 {
-    LoadInstruction * instruction;
+    Reference * ref;
     int stride;
     Addr pf_addr;
 
     if (reference_table.has(stat.pc)) {
         
         // Compute prefetch address.
-        instruction = reference_table.get(stat.pc);
-        stride = stat.mem_addr - instruction->prev_addr;
+        ref = reference_table.get(stat.pc);
+        stride = stat.mem_addr - ref->prev_addr;
         pf_addr = stat.mem_addr + stride;
 
         // Issue the prefetch.
@@ -106,7 +106,7 @@ void prefetch_access(AccessStat stat)
         }
 
         // Update the table entry.
-        instruction->prev_addr = stat.mem_addr;
+        ref->prev_addr = stat.mem_addr;
     } else {
         reference_table.add(stat.pc, stat.mem_addr);
     }
