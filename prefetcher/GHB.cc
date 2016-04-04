@@ -33,14 +33,14 @@ GHB::GHB() : length(0), first(NULL), last(NULL){}
 void GHB::push(AccessStat stat) {
     
     if (indexTable.has(stat.pc)) {
-        indexTableEntry* index = indexTable.get(stat.pc);
+        indexTableEntry * index = indexTable.get(stat.pc);
         GHBEntry * prevOnIndex = index->lastAccess;
     } else {
-        indexTableEntry index = new indexTableEntry(stat.pc);
+        indexTableEntry * index = new indexTableEntry(stat.pc);
         indexTable.push(index);
-        GHBEntry prevOnIndex = NULL;
+        GHBEntry * prevOnIndex = NULL;
     }
-    GHBEntry newEntry = new GHBEntry(stat.mem_addr,prevOnIndex);
+    GHBEntry * newEntry = new GHBEntry(stat.mem_addr, prevOnIndex);
     index->lastAccess = newEntry;
     if (length==0) {
         first = newEntry;
@@ -56,7 +56,7 @@ void GHB::push(AccessStat stat) {
 }
 
 void GHB::shift(){
-    GHBEntry* trash = first;
+    GHBEntry * trash = first;
     first = first->next;
     first->prev = NULL;
     this->length--;
