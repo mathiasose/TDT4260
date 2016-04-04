@@ -12,6 +12,7 @@
 GHB history;
 IndexTable index;
 
+
 struct GHBEntry {
     GHBEntry(Addr address, GHBEntry * prev);
     Addr address;
@@ -19,8 +20,6 @@ struct GHBEntry {
     GHBEntry * prevInGHB;
     GHBEntry * next;
 };
-
-GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev) {}
 
 struct GHB {
     GHB();
@@ -30,6 +29,31 @@ struct GHB {
     GHBEntry * first;
     GHBEntry * last;
 };
+
+struct IndexTableEntry {
+    IndexTableEntry(Addr pc);
+    Addr pc;
+    IndexTableEntry * prev;
+    GHBEntry * lastAccess;
+};
+
+struct IndexTable {
+    IndexTable();
+    void push(IndexTableEntry* entry);
+    void shift();
+    bool has(Addr pc);
+    IndexTableEntry get(Addr pc);
+    IndexTableEntry * first;
+    IndexTableEntry * last;
+    int length;
+};
+
+struct deltaTable {
+    deltaTable();
+};
+
+
+GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev) {}
 
 GHB::GHB() : length(0), first(NULL), last(NULL) {}
 
@@ -66,26 +90,7 @@ void GHB::shift(){
     delete trash;
 }
 
-struct IndexTableEntry {
-    IndexTableEntry(Addr pc);
-    Addr pc;
-    IndexTableEntry * prev;
-    GHBEntry * lastAccess;
-};
-
 IndexTableEntry::IndexTableEntry(Addr pc) : pc(pc) {}
-
-
-struct IndexTable {
-    IndexTable();
-    void push(IndexTableEntry* entry);
-    void shift();
-    bool has(Addr pc);
-    IndexTableEntry get(Addr pc);
-    IndexTableEntry * first;
-    IndexTableEntry * last;
-    int length;
-};
 
 IndexTable::IndexTable() : length(0), first(NULL), last(NULL){}
 
@@ -97,11 +102,6 @@ void IndexTable::push(IndexTableEntry* entry) {
     last = entry;
     
 }
-
-struct deltaTable {
-    deltaTable();
-};
-
 
 void prefetch_init(void)
 {
