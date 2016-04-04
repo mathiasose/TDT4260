@@ -9,9 +9,14 @@
 
 #define MAX_LENGTH 512
 
+
+GHB history;
+IndexTable index;
+
+
 struct GHBEntry {
     GHBEntry(Addr address);
-    Addr address
+    Addr address;
     GHBEntry * prevOnIndex;
     GHBEntry * prevInGHB;
     GHBEntry * next;
@@ -28,7 +33,7 @@ struct GHB {
     GHBEntry * last;
 };
 
-GHB::GHB() : length(0), first(NULL), last(NULL){}
+GHB::GHB() : length(0), first(NULL), last(NULL) {}
 
 void GHB::push(AccessStat stat) {
     
@@ -100,17 +105,10 @@ struct deltaTable {
 };
 
 
-GHB ghb;
-IndexTable index;
-
-
 void prefetch_init(void)
 {
     /* Called before any calls to prefetch_access. */
     /* This is the place to initialize data structures. */
-    ghb = new GHB();
-    index = new IndexTable();
-
     DPRINTF(HWPrefetch, "init");
 }
 
