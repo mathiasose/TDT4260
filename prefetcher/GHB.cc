@@ -13,7 +13,8 @@ struct GHBEntry {
     GHBEntry(Addr address);
     Addr address
     GHBEntry * prevOnIndex;
-    GHBEntry * prevInGHB, * next;
+    GHBEntry * prevInGHB;
+    GHBEntry * next;
 };
 
 GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev) {}
@@ -23,7 +24,8 @@ struct GHB {
     void shift();
     void push(AccessStat stat);
     int length;
-    GHBEntry * first, * last;
+    GHBEntry * first;
+    GHBEntry * last;
 };
 
 GHB::GHB() : : length(0), first(NULL), last(NULL){}
@@ -78,7 +80,8 @@ struct indexTable {
     void shift();
     bool has(Addr pc);
     indexTableEntry get(Addr pc);
-    indexTableEntry * first, * last;
+    indexTableEntry * first;
+    indexTableEntry * last;
     int length;
 };
 
