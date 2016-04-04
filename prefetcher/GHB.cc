@@ -28,23 +28,22 @@ struct GHB {
     GHBEntry * last;
 };
 
-GHB::GHB() : : length(0), first(NULL), last(NULL){}
-
+GHB::GHB() : length(0), first(NULL), last(NULL){}
 
 void GHB::push(AccessStat stat) {
     
     if (indexTable.has(stat.pc)) {
-        indexTableEntry* index = indexTable.get(stat.pc)
+        indexTableEntry* index = indexTable.get(stat.pc);
         GHBEntry * prevOnIndex = index->lastAccess;
     } else {
-        indexTableEntry index =  new indexTableEntry(stat.pc)
-        indexTable.push(index)
-        GHBEntry prevOnIndex = NULL
+        indexTableEntry index = new indexTableEntry(stat.pc);
+        indexTable.push(index);
+        GHBEntry prevOnIndex = NULL;
     }
-    GHBEntry newEntry = new GHBEntry(stat.mem_addr,prevOnIndex)
+    GHBEntry newEntry = new GHBEntry(stat.mem_addr,prevOnIndex);
     index->lastAccess = newEntry;
     if (length==0) {
-        first = newEntry
+        first = newEntry;
     }
     last->next = newEntry;
     newEntry->prevInGHB = last;
