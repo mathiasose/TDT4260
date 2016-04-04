@@ -9,13 +9,11 @@
 
 #define MAX_LENGTH 512
 
-
 GHB history;
 IndexTable index;
 
-
 struct GHBEntry {
-    GHBEntry(Addr address);
+    GHBEntry(Addr address, GHBEntry * prev);
     Addr address;
     GHBEntry * prevOnIndex;
     GHBEntry * prevInGHB;
