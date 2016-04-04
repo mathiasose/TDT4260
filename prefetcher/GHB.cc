@@ -33,10 +33,10 @@ GHB::GHB() : length(0), first(NULL), last(NULL){}
 void GHB::push(AccessStat stat) {
     
     if (indexTable.has(stat.pc)) {
-        indexTableEntry * index = indexTable.get(stat.pc);
+        IndexTableEntry * index = indexTable.get(stat.pc);
         GHBEntry * prevOnIndex = index->lastAccess;
     } else {
-        indexTableEntry * index = new indexTableEntry(stat.pc);
+        IndexTableEntry * index = new IndexTableEntry(stat.pc);
         indexTable.push(index);
         GHBEntry * prevOnIndex = NULL;
     }
@@ -63,30 +63,30 @@ void GHB::shift(){
     delete trash;
 }
 
-struct indexTableEntry {
-    indexTableEntry(Addr pc);
+struct IndexTableEntry {
+    IndexTableEntry(Addr pc);
     Addr pc;
-    indexTableEntry * prev;
+    IndexTableEntry * prev;
     GHBEntry * lastAccess;
 };
 
-indexTableEntry::indexTableEntry(Addr pc) : pc(pc) {}
+IndexTableEntry::IndexTableEntry(Addr pc) : pc(pc) {}
 
 
-struct indexTable {
-    indexTable();
-    void push(indexTableEntry* entry);
+struct IndexTable {
+    IndexTable();
+    void push(IndexTableEntry* entry);
     void shift();
     bool has(Addr pc);
-    indexTableEntry get(Addr pc);
-    indexTableEntry * first;
-    indexTableEntry * last;
+    IndexTableEntry get(Addr pc);
+    IndexTableEntry * first;
+    IndexTableEntry * last;
     int length;
 };
 
-indexTable::indexTable() : length(0), first(NULL), last(NULL){}
+IndexTable::IndexTable() : length(0), first(NULL), last(NULL){}
 
-void indexTable::push(indexTableEntry* entry) {
+void IndexTable::push(IndexTableEntry* entry) {
     if (length==0) {
         first = entry;
     }
@@ -101,7 +101,7 @@ struct deltaTable {
 
 
 GHB ghb;
-indexTable index;
+IndexTable index;
 
 
 void prefetch_init(void)
@@ -109,7 +109,7 @@ void prefetch_init(void)
     /* Called before any calls to prefetch_access. */
     /* This is the place to initialize data structures. */
     ghb = new GHB();
-    index = new indexTable();
+    index = new IndexTable();
 
     DPRINTF(HWPrefetch, "init");
 }
