@@ -8,6 +8,7 @@
 #include "interface.hh"
 
 #define MAX_LENGTH 512
+#define MAX_LOOKBACK 256
 
 struct GHBEntry {
     GHBEntry(Addr address, GHBEntry * prev);
@@ -44,10 +45,14 @@ struct GHB {
     GHBEntry * last;
 };
 
+/*
 struct deltaTable {
     deltaTable();
+    void updateDeltas();
+    int nextDelta();
+    int[] deltaList;
 };
-
+*/
 
 GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev) {}
 
@@ -115,6 +120,43 @@ IndexTableEntry* IndexTable::get(Addr pc) {
 IndexTable iTable;
 GHB history(&iTable);
 
+int delta(Addr pc) {
+    int delta1, delta2, nextDelta1, nextDelta2;
+    GHBEntry * current = iTable.get(pc)->lastAccess;
+    if (current->prevOnIndex == NULL || current->prevOnIndex->prevOnIndex == NULL) {
+        return BLOCK_SIZE;
+    }
+    delta1 = current->address - current->prevOnIndex->address;
+    delta2 = current->prevOnIndex->address - current->prevOnIndex->prevOnIndex->address;
+    for (int i = 0;i<MAX_LOOKBACK;i++) {
+        current = current->prevOnIndex->prevOnIndex;
+        if (current->prevOnIndex == NULL || current->prevOnIndex->prevOnIndex == NULL) {
+            return BLOCK_SIZE;
+        }
+        
+        nextDelta1 = current->address - current->prevOnIndex->address;
+        nextDelta2 = current->prevOnIndex->address - current->prevOnIndex->prevOnIndex->address;
+        if ((delta1 == nextDelta1) && (delta2 ==  nextDelta2)) {
+            delta1 = nextDelta1;
+            delta2 = nextDelta2;
+        } else {
+            return delta2;
+        }
+        
+    }
+    return delta2;
+}
+
+void try_prefetch(Addr pf_addr) {
+    
+    // Issue prefetch.
+    if (pf_addr <= MAX_PHYS_MEM_ADDR
+        && !in_cache(pf_addr)
+        && !in_mshr_queue(pf_addr)) {
+        issue_prefetch(pf_addr);
+    }
+}
+
 void prefetch_init(void)
 {
     /* Called before any calls to prefetch_access. */
@@ -124,7 +166,8 @@ void prefetch_init(void)
 
 void prefetch_access(AccessStat stat)
 {
-    
+    history.push(stat);
+    try_prefetch(stat.mem_addr + delta(stat.pc));
 }
 
 void prefetch_complete(Addr addr) {
