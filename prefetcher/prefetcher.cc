@@ -9,25 +9,12 @@
 
 #define MAX_LENGTH 512
 
-GHB history;
-IndexTable index;
-
-
 struct GHBEntry {
     GHBEntry(Addr address, GHBEntry * prev);
     Addr address;
     GHBEntry * prevOnIndex;
     GHBEntry * prevInGHB;
     GHBEntry * next;
-};
-
-struct GHB {
-    GHB();
-    void shift();
-    void push(AccessStat stat);
-    int length;
-    GHBEntry * first;
-    GHBEntry * last;
 };
 
 struct IndexTableEntry {
@@ -41,11 +28,20 @@ struct IndexTable {
     IndexTable();
     void push(IndexTableEntry* entry);
     void shift();
-    bool has(Addr pc);
-    IndexTableEntry get(Addr pc);
+    IndexTableEntry* get(Addr pc);
+    int length;
     IndexTableEntry * first;
     IndexTableEntry * last;
+};
+
+struct GHB {
+    GHB(IndexTable * iTable);
+    void shift();
+    void push(AccessStat stat);
     int length;
+    IndexTable * iTable;
+    GHBEntry * first;
+    GHBEntry * last;
 };
 
 struct deltaTable {
@@ -55,17 +51,17 @@ struct deltaTable {
 
 GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev) {}
 
-GHB::GHB() : length(0), first(NULL), last(NULL) {}
+GHB::GHB(IndexTable * iTable) : length(0), iTable(iTable), first(NULL), last(NULL) {}
 
 void GHB::push(AccessStat stat) {
-    
-    if (indexTable.has(stat.pc)) {
-        IndexTableEntry * index = indexTable.get(stat.pc);
-        GHBEntry * prevOnIndex = index->lastAccess;
+    IndexTableEntry * index = iTable->get(stat.pc);
+    GHBEntry * prevOnIndex;
+    if (index != NULL) {
+        prevOnIndex = index->lastAccess;
     } else {
-        IndexTableEntry * index = new IndexTableEntry(stat.pc);
-        indexTable.push(index);
-        GHBEntry * prevOnIndex = NULL;
+        index = new IndexTableEntry(stat.pc);
+        iTable->push(index);
+        prevOnIndex = NULL;
     }
     GHBEntry * newEntry = new GHBEntry(stat.mem_addr, prevOnIndex);
     index->lastAccess = newEntry;
@@ -85,8 +81,8 @@ void GHB::push(AccessStat stat) {
 void GHB::shift(){
     GHBEntry * trash = first;
     first = first->next;
-    first->prev = NULL;
-    this->length--;
+    first->prevInGHB = NULL;
+    length--;
     delete trash;
 }
 
@@ -102,6 +98,22 @@ void IndexTable::push(IndexTableEntry* entry) {
     last = entry;
     
 }
+
+IndexTableEntry* IndexTable::get(Addr pc) {
+    IndexTableEntry * current = first;
+    while (true) {
+        if (current->pc == pc) {
+            return current;
+        } else if (current->prev == NULL) {
+            return NULL;
+        } else {
+            current = current->prev;
+        }
+    }
+}
+
+IndexTable iTable;
+GHB history(&iTable);
 
 void prefetch_init(void)
 {
