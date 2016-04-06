@@ -14,7 +14,7 @@ struct GHBEntry {
     GHBEntry(Addr address, GHBEntry * prev);
     Addr address;
     GHBEntry * prevOnIndex;
-    GHBEntry * prevInGHB;
+    GHBEntry * prev;
     GHBEntry * next;
 };
 
@@ -74,7 +74,7 @@ void GHB::push(AccessStat stat) {
         first = newEntry;
     }
     last->next = newEntry;
-    newEntry->prevInGHB = last;
+    newEntry->prev = last;
     newEntry->next = NULL;
     last = newEntry;
     length++;
@@ -86,7 +86,7 @@ void GHB::push(AccessStat stat) {
 void GHB::shift(){
     GHBEntry * trash = first;
     first = first->next;
-    first->prevInGHB = NULL;
+    first->prev = NULL;
     length--;
     delete trash;
 }
