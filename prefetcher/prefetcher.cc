@@ -96,12 +96,12 @@ IndexTableEntry::IndexTableEntry(Addr pc) : pc(pc) {}
 IndexTable::IndexTable() : length(0), first(NULL), last(NULL){}
 
 void IndexTable::push(IndexTableEntry* entry) {
-    if (length==0) {
+    if (length == 0) {
         first = entry;
     }
     entry->prev = last;
     last = entry;
-    
+    length++;
 }
 
 IndexTableEntry* IndexTable::get(Addr pc) {
