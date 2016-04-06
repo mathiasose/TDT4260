@@ -9,13 +9,16 @@
 
 #define MAX_LENGTH 512
 #define MAX_LOOKBACK 256
+#define PREFETCH_DEGREE 4
 
 struct GHBEntry {
     GHBEntry(Addr address, GHBEntry * prev);
     Addr address;
     GHBEntry * prevOnIndex;
+    GHBEntry * nextOnIndex;
     GHBEntry * prev;
     GHBEntry * next;
+    uint64_t delta;
 };
 
 struct IndexTableEntry {
@@ -54,13 +57,17 @@ struct deltaTable {
 };
 */
 
-GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev), prev(NULL), next(NULL) {}
+GHBEntry::GHBEntry(Addr address, GHBEntry * prev) :
+    address(address),
+    prevOnIndex(prev), nextOnIndex(NULL),
+    prev(NULL), next(NULL),
+    delta(0)
+{ }
 
 GHB::GHB(IndexTable * iTable) : length(0), iTable(iTable), first(NULL), last(NULL) {}
 
 void GHB::push(AccessStat stat) {
     IndexTableEntry * index;
-    GHBEntry * prevOnIndex;
     GHBEntry * newEntry;
 
     // Get the previous index entry
@@ -69,11 +76,9 @@ void GHB::push(AccessStat stat) {
         index = new IndexTableEntry(stat.pc);
         iTable->push(index);
     }
-    prevOnIndex = index->lastAccess;
 
     // Add the new history entry to the GHB
-    newEntry = new GHBEntry(stat.mem_addr, prevOnIndex);
-    index->lastAccess = newEntry;
+    newEntry = new GHBEntry(stat.mem_addr, index->lastAccess);
     if (length == 0) {
         first = newEntry;
         last  = newEntry;
@@ -84,7 +89,14 @@ void GHB::push(AccessStat stat) {
     }
     length++;
 
-    // Delete oldest entry
+    // Update the index
+    if (index->lastAccess != NULL) {
+        index->lastAccess->nextOnIndex = newEntry;
+        index->lastAccess->delta = newEntry->address - index->lastAccess->address;
+    }
+    index->lastAccess = newEntry;
+
+    // Delete the oldest history entry
     if(length > MAX_LENGTH) {
         shift();
     }
@@ -122,33 +134,6 @@ IndexTableEntry * IndexTable::get(Addr pc) {
 IndexTable iTable;
 GHB history(&iTable);
 
-int delta(Addr pc) {
-    int delta1, delta2, nextDelta1, nextDelta2;
-    GHBEntry * current = iTable.get(pc)->lastAccess;
-    if (current->prevOnIndex == NULL || current->prevOnIndex->prevOnIndex == NULL) {
-        return BLOCK_SIZE;
-    }
-    delta1 = current->address - current->prevOnIndex->address;
-    delta2 = current->prevOnIndex->address - current->prevOnIndex->prevOnIndex->address;
-    for (int i = 0;i<MAX_LOOKBACK;i++) {
-        current = current->prevOnIndex->prevOnIndex;
-        if (current->prevOnIndex == NULL || current->prevOnIndex->prevOnIndex == NULL) {
-            return BLOCK_SIZE;
-        }
-        
-        nextDelta1 = current->address - current->prevOnIndex->address;
-        nextDelta2 = current->prevOnIndex->address - current->prevOnIndex->prevOnIndex->address;
-        if ((delta1 == nextDelta1) && (delta2 ==  nextDelta2)) {
-            delta1 = nextDelta1;
-            delta2 = nextDelta2;
-        } else {
-            return delta2;
-        }
-        
-    }
-    return delta2;
-}
-
 void try_prefetch(Addr pf_addr) {
     
     // Issue prefetch.
@@ -166,10 +151,74 @@ void prefetch_init(void)
     DPRINTF(HWPrefetch, "init");
 }
 
+
+// Find the earliest occurrence in history with a matching delta pair
+GHBEntry * find_delta_match(GHBEntry * entry, uint64_t delta1, uint64_t delta2) {
+    uint64_t delta3;
+    uint64_t delta4;
+
+    // Check that we have enough history
+    if (entry == NULL
+            || entry->prevOnIndex == NULL
+            || entry->prevOnIndex->prevOnIndex == NULL) {
+        return NULL;
+    }
+
+    // Compute deltas
+    delta3 = entry->address - entry->prevOnIndex->address;
+    delta4 = entry->prevOnIndex->address - entry->prevOnIndex->prevOnIndex->address;
+
+    if (delta1 == delta3 && delta2 == delta4) {
+        return entry;
+    } else {
+        return find_delta_match(entry->prevOnIndex, delta1, delta2);
+    }
+}
+
+bool is_delta_match(GHBEntry * e1, GHBEntry * e2) {
+    uint64_t d1, d2, d3, d4;
+    d1 = e1->delta;
+    d2 = e1->nextOnIndex->delta;
+    d3 = e2->delta;
+    d4 = e2->nextOnIndex->delta;
+    return (d1 == d3) && (d2 == d4);
+}
+
 void prefetch_access(AccessStat stat)
 {
+    Addr pf_addr;
+    IndexTableEntry * index;
+    GHBEntry * first;
+    GHBEntry * match;
+
     history.push(stat);
-    try_prefetch(stat.mem_addr + delta(stat.pc));
+
+    index = iTable.get(stat.pc);
+    if (index == NULL) {
+        return;
+    }
+    first = index->lastAccess;
+
+    // Check that we have enough history
+    if (first == NULL
+            || first->prevOnIndex == NULL
+            || first->prevOnIndex->prevOnIndex == NULL) {
+        return;
+    }
+
+    // Find a delta match
+    first = first->prevOnIndex->prevOnIndex;
+    match = first->prevOnIndex;
+    while (match != NULL && !is_delta_match(first, match)) {
+        match = first->prevOnIndex;
+    }
+
+    pf_addr = stat.mem_addr;
+    for (int i=0; i<PREFETCH_DEGREE && match != NULL; i++) {
+        pf_addr += match->delta;
+        try_prefetch(pf_addr);
+        match = match->nextOnIndex;
+    }
 }
 
 void prefetch_complete(Addr addr) {
