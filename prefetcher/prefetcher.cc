@@ -111,17 +111,12 @@ void IndexTable::push(IndexTableEntry* entry) {
     length++;
 }
 
-IndexTableEntry* IndexTable::get(Addr pc) {
+IndexTableEntry * IndexTable::get(Addr pc) {
     IndexTableEntry * current = first;
-    while (true) {
-        if (current->pc == pc) {
-            return current;
-        } else if (current->prev == NULL) {
-            return NULL;
-        } else {
-            current = current->prev;
-        }
+    while (current != NULL && current->pc != pc) {
+        current = current->prev;
     }
+    return current;
 }
 
 IndexTable iTable;
