@@ -110,7 +110,7 @@ void GHB::shift(){
     delete trash;
 }
 
-IndexTableEntry::IndexTableEntry(Addr pc) : pc(pc) {}
+IndexTableEntry::IndexTableEntry(Addr pc) : pc(pc), lastAccess(NULL) {}
 
 IndexTable::IndexTable() : length(0), first(NULL), last(NULL){}
 
