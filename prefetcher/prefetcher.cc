@@ -54,32 +54,39 @@ struct deltaTable {
 };
 */
 
-GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev) {}
+GHBEntry::GHBEntry(Addr address, GHBEntry * prev) : address(address), prevOnIndex(prev), prev(NULL), next(NULL) {}
 
 GHB::GHB(IndexTable * iTable) : length(0), iTable(iTable), first(NULL), last(NULL) {}
 
 void GHB::push(AccessStat stat) {
-    IndexTableEntry * index = iTable->get(stat.pc);
+    IndexTableEntry * index;
     GHBEntry * prevOnIndex;
-    if (index != NULL) {
-        prevOnIndex = index->lastAccess;
-    } else {
+    GHBEntry * newEntry;
+
+    // Get the previous index entry
+    index = iTable->get(stat.pc);
+    if (index == NULL) {
         index = new IndexTableEntry(stat.pc);
         iTable->push(index);
-        prevOnIndex = NULL;
     }
-    GHBEntry * newEntry = new GHBEntry(stat.mem_addr, prevOnIndex);
+    prevOnIndex = index->lastAccess;
+
+    // Add the new history entry to the GHB
+    newEntry = new GHBEntry(stat.mem_addr, prevOnIndex);
     index->lastAccess = newEntry;
-    if (length==0) {
+    if (length == 0) {
         first = newEntry;
+        last  = newEntry;
+    } else {
+        last->next = newEntry;
+        newEntry->prev = last;
+        last = newEntry;
     }
-    last->next = newEntry;
-    newEntry->prev = last;
-    newEntry->next = NULL;
-    last = newEntry;
     length++;
+
+    // Delete oldest entry
     if(length > MAX_LENGTH) {
-        this->shift();
+        shift();
     }
 }
 
