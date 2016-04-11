@@ -40,7 +40,6 @@ struct IndexTable {
 
 struct GHB {
     GHB(IndexTable * iTable);
-    void shift();
     void push(AccessStat stat);
     int length;
     IndexTable * iTable;
@@ -89,16 +88,12 @@ void GHB::push(AccessStat stat) {
 
     // Delete the oldest history entry
     if(length > MAX_LENGTH) {
-        shift();
+        GHBEntry * trash = first;
+        first = first->next;
+        first->prev = NULL;
+        length--;
+        delete trash;
     }
-}
-
-void GHB::shift(){
-    GHBEntry * trash = first;
-    first = first->next;
-    first->prev = NULL;
-    length--;
-    delete trash;
 }
 
 IndexTableEntry::IndexTableEntry(Addr pc) : pc(pc), lastAccess(NULL) {}
