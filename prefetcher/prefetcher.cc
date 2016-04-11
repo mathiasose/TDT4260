@@ -151,30 +151,6 @@ void prefetch_init(void)
     DPRINTF(HWPrefetch, "init");
 }
 
-
-// Find the earliest occurrence in history with a matching delta pair
-GHBEntry * find_delta_match(GHBEntry * entry, uint64_t delta1, uint64_t delta2) {
-    uint64_t delta3;
-    uint64_t delta4;
-
-    // Check that we have enough history
-    if (entry == NULL
-            || entry->prevOnIndex == NULL
-            || entry->prevOnIndex->prevOnIndex == NULL) {
-        return NULL;
-    }
-
-    // Compute deltas
-    delta3 = entry->address - entry->prevOnIndex->address;
-    delta4 = entry->prevOnIndex->address - entry->prevOnIndex->prevOnIndex->address;
-
-    if (delta1 == delta3 && delta2 == delta4) {
-        return entry;
-    } else {
-        return find_delta_match(entry->prevOnIndex, delta1, delta2);
-    }
-}
-
 bool is_delta_match(GHBEntry * e1, GHBEntry * e2) {
     uint64_t d1, d2, d3, d4;
     d1 = e1->delta;
