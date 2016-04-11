@@ -210,7 +210,7 @@ void prefetch_access(AccessStat stat)
     first = first->prevOnIndex->prevOnIndex;
     match = first->prevOnIndex;
     while (match != NULL && !is_delta_match(first, match)) {
-        match = first->prevOnIndex;
+        match = match->prevOnIndex;
     }
 
     pf_addr = stat.mem_addr;
