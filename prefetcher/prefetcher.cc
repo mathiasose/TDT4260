@@ -48,15 +48,6 @@ struct GHB {
     GHBEntry * last;
 };
 
-/*
-struct deltaTable {
-    deltaTable();
-    void updateDeltas();
-    int nextDelta();
-    int[] deltaList;
-};
-*/
-
 GHBEntry::GHBEntry(Addr address, GHBEntry * prev) :
     address(address),
     prevOnIndex(prev), nextOnIndex(NULL),
@@ -151,12 +142,13 @@ void prefetch_init(void)
     DPRINTF(HWPrefetch, "init");
 }
 
+// Return true if the entries' delta pairs are identical
 bool is_delta_match(GHBEntry * e1, GHBEntry * e2) {
     uint64_t d1, d2, d3, d4;
-    d1 = e1->delta;
-    d2 = e1->nextOnIndex->delta;
-    d3 = e2->delta;
-    d4 = e2->nextOnIndex->delta;
+    d1 = e1->nextOnIndex->delta;
+    d2 = e1->delta;
+    d3 = e2->nextOnIndex->delta;
+    d4 = e2->delta;
     return (d1 == d3) && (d2 == d4);
 }
 
@@ -169,28 +161,30 @@ void prefetch_access(AccessStat stat)
 
     history.push(stat);
 
+    // Get the history entry for this instruction
     index = iTable.get(stat.pc);
     if (index == NULL) {
         return;
     }
     first = index->lastAccess;
 
-    // Check that we have enough history
+    // Ensure that the instruction have enough history entries
     if (first == NULL
             || first->prevOnIndex == NULL
             || first->prevOnIndex->prevOnIndex == NULL) {
         return;
     }
 
-    // Find a delta match
+    // Find the most recent matching delta pair
     first = first->prevOnIndex->prevOnIndex;
     match = first->prevOnIndex;
     while (match != NULL && !is_delta_match(first, match)) {
         match = match->prevOnIndex;
     }
 
+    // Use the access history following the match to issue prefetches
     pf_addr = stat.mem_addr;
-    for (int i=0; i<PREFETCH_DEGREE && match != NULL; i++) {
+    for (int i=0; match != NULL && i<PREFETCH_DEGREE; i++) {
         pf_addr += match->delta;
         try_prefetch(pf_addr);
         match = match->nextOnIndex;
